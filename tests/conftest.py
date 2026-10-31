@@ -25,6 +25,8 @@ def report(now: datetime) -> StatusReport:
             "collected_at": now.isoformat(),
             "uptime_seconds": 90_000,
             "reboot_required": False,
+            "os_version": "Debian GNU/Linux 13 (trixie)",
+            "kernel_version": "6.12.43+deb13-amd64",
             "load_average": [0.12, 0.18, 0.22],
             "memory_available_bytes": 4_000_000_000,
             "memory_total_bytes": 8_000_000_000,

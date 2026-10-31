@@ -64,6 +64,33 @@ def _fit_text(draw: ImageDraw.ImageDraw, text: str, font: ImageFont.ImageFont, m
     return text[:low].rstrip() + ellipsis
 
 
+def _wrap_text(
+    draw: ImageDraw.ImageDraw,
+    text: str,
+    font: ImageFont.ImageFont,
+    max_width: int,
+    max_lines: int = 2,
+) -> list[str]:
+    words = text.split()
+    lines: list[str] = []
+    current = ""
+    while words:
+        word = words.pop(0)
+        candidate = f"{current} {word}".strip()
+        if not current or draw.textbbox((0, 0), candidate, font=font)[2] <= max_width:
+            current = candidate
+            continue
+        lines.append(current)
+        current = word
+        if len(lines) == max_lines - 1:
+            remainder = " ".join([current, *words])
+            lines.append(_fit_text(draw, remainder, font, max_width))
+            return lines
+    if current:
+        lines.append(_fit_text(draw, current, font, max_width))
+    return lines[:max_lines]
+
+
 def _cover(background: Image.Image | None, size: tuple[int, int]) -> Image.Image:
     if background is None:
         width, height = size
@@ -175,8 +202,20 @@ def _compact_metric_parts(report: dict[str, Any], now: datetime, backup_stale_af
         parts.append("Load " + " ".join(_load_average(float(value)) for value in load))
     memory = report.get("memory_available_bytes")
     if memory is not None:
-        parts.append(f"Mem {_bytes(int(memory))} free")
+        total_memory = report.get("memory_total_bytes")
+        if total_memory is not None:
+            parts.append(f"Mem {_bytes(int(memory))} / {_bytes(int(total_memory))} available")
+        else:
+            parts.append(f"Mem {_bytes(int(memory))} available")
     return parts
+
+
+def _system_identity(report: dict[str, Any]) -> str:
+    os_version = report.get("os_version")
+    kernel = report.get("kernel_version")
+    if os_version and kernel:
+        return f"{os_version} · Linux {kernel}"
+    return str(os_version or (f"Linux {kernel}" if kernel else ""))
 
 
 def _compact_metric_lines(
@@ -227,26 +266,33 @@ def _draw_compact_panel(
     left = x1 + padding
     right = x2 - padding
     name_font = _font(SANS_BOLD, round(18 * scale))
+    identity_font = _font(SANS_REGULAR, round(9 * scale))
     status_font = _font(SANS_BOLD, round(10 * scale))
     update_font = _font(SANS_REGULAR, round(10 * scale))
     metric_font = _font(SANS_REGULAR, round(13 * scale))
     status_label, status_color = _status(peer)
 
+    report = peer.get("report")
+    identity = _system_identity(report) if report else ""
+    vertical_shift = round(7 * scale) if identity else 0
+    if identity:
+        identity = _fit_text(draw, identity, identity_font, right - left)
+        draw.text((left, y1 + round(2 * scale)), identity, font=identity_font, fill=MUTED)
+
     dot = max(3, round(4 * scale))
-    draw.ellipse((left, y1 + round(15 * scale), left + dot * 2, y1 + round(15 * scale) + dot * 2), fill=status_color)
+    draw.ellipse((left, y1 + round(15 * scale) + vertical_shift, left + dot * 2, y1 + round(15 * scale) + vertical_shift + dot * 2), fill=status_color)
     name_x = left + dot * 2 + round(7 * scale)
     update = _update_age(peer)
     update_width = draw.textbbox((0, 0), update, font=update_font)[2]
     name = _fit_text(draw, str(peer["name"]).upper(), name_font, right - update_width - name_x - round(12 * scale))
-    draw.text((name_x, y1 + round(7 * scale)), name, font=name_font, fill=WHITE)
-    draw.text((right, y1 + round(10 * scale)), update, font=update_font, fill=MUTED, anchor="ra")
-    draw.text((name_x, y1 + round(28 * scale)), status_label, font=status_font, fill=status_color)
+    draw.text((name_x, y1 + round(7 * scale) + vertical_shift), name, font=name_font, fill=WHITE)
+    draw.text((right, y1 + round(10 * scale) + vertical_shift), update, font=update_font, fill=MUTED, anchor="ra")
+    draw.text((name_x, y1 + round(28 * scale) + vertical_shift), status_label, font=status_font, fill=status_color)
 
-    report = peer.get("report")
     if report and report.get("reboot_required") is True:
-        draw.text((right, y1 + round(28 * scale)), "REBOOT REQUIRED", font=status_font, fill=AMBER, anchor="ra")
+        draw.text((right, y1 + round(28 * scale) + vertical_shift), "REBOOT REQUIRED", font=status_font, fill=AMBER, anchor="ra")
     if not report:
-        draw.text((name_x, y1 + round(49 * scale)), "No status data available", font=metric_font, fill=MUTED)
+        draw.text((name_x, y1 + round(49 * scale) + vertical_shift), "No status data available", font=metric_font, fill=MUTED)
         return
 
     lines = _compact_metric_lines(
@@ -256,7 +302,7 @@ def _draw_compact_panel(
         right - name_x,
     )
     for index, line in enumerate(lines):
-        draw.text((name_x, y1 + round((48 + index * 19) * scale)), line, font=metric_font, fill=WHITE)
+        draw.text((name_x, y1 + round((48 + index * 18) * scale) + vertical_shift), line, font=metric_font, fill=WHITE)
 
 
 def _render_compact_widget(
@@ -299,14 +345,22 @@ def _render_compact_widget(
 
     if quote:
         quote_font = _font(SERIF_ITALIC, round(14 * scale))
-        quote_text = _fit_text(draw, quote, quote_font, width - margin * 2)
-        _draw_shadowed_text(draw, (width // 2, round(102 * scale)), quote_text, quote_font, anchor="ma", shadow=1)
+        quote_lines = _wrap_text(draw, quote, quote_font, width - margin * 2, max_lines=2)
+        for index, quote_line in enumerate(quote_lines):
+            _draw_shadowed_text(
+                draw,
+                (width // 2, round((94 + index * 17) * scale)),
+                quote_line,
+                quote_font,
+                anchor="ma",
+                shadow=1,
+            )
     if background_description:
         description_font = _font(SANS_REGULAR, round(11 * scale))
         description = _fit_text(draw, background_description, description_font, width - margin * 2)
         _draw_shadowed_text(
             draw,
-            (width // 2, round(124 * scale)),
+            (width // 2, round(132 * scale)),
             description,
             description_font,
             anchor="ma",

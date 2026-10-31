@@ -3,6 +3,8 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import platform
+import shlex
 import shutil
 import subprocess
 import sys
@@ -107,6 +109,32 @@ def read_load_average() -> tuple[float, float, float] | None:
     except (AttributeError, OSError):
         return None
     return one, five, fifteen
+
+
+def read_os_version(path: Path = Path("/etc/os-release")) -> str | None:
+    try:
+        values: dict[str, str] = {}
+        for line in path.read_text(encoding="utf-8").splitlines():
+            key, separator, raw_value = line.partition("=")
+            if not separator or key not in {"PRETTY_NAME", "NAME", "VERSION_ID"}:
+                continue
+            parsed = shlex.split(raw_value, comments=False, posix=True)
+            values[key] = parsed[0] if parsed else ""
+        pretty = values.get("PRETTY_NAME")
+        if pretty:
+            return pretty[:128]
+        fallback = " ".join(part for part in (values.get("NAME"), values.get("VERSION_ID")) if part)
+        return fallback[:128] or None
+    except (OSError, ValueError):
+        return None
+
+
+def read_kernel_version() -> str | None:
+    try:
+        value = platform.release().strip()
+        return value[:128] or None
+    except OSError:
+        return None
 
 
 def read_memory(path: Path = Path("/proc/meminfo")) -> tuple[int, int] | None:
@@ -250,6 +278,12 @@ def collect_status(
     load = read_load_average()
     if load is not None:
         report["load_average"] = list(load)
+    os_version = read_os_version()
+    if os_version:
+        report["os_version"] = os_version
+    kernel_version = read_kernel_version()
+    if kernel_version:
+        report["kernel_version"] = kernel_version
     if memory is not None:
         report["memory_available_bytes"], report["memory_total_bytes"] = memory
     for restic_config in restic_configs:

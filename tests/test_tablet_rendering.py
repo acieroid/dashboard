@@ -13,6 +13,8 @@ def snapshot() -> dict[str, object]:
     report = {
         "uptime_seconds": 1_245_600,
         "reboot_required": False,
+        "os_version": "Debian GNU/Linux 13 (trixie)",
+        "kernel_version": "6.12.43+deb13-amd64",
         "load_average": [0.18, 0.24, 0.31],
         "memory_available_bytes": 6 * 1024**3,
         "memory_total_bytes": 16 * 1024**3,

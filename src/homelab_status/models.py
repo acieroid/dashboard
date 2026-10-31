@@ -37,6 +37,8 @@ class StatusReport(BaseModel):
     collected_at: datetime
     uptime_seconds: int = Field(ge=0)
     reboot_required: bool | None = None
+    os_version: str | None = Field(default=None, min_length=1, max_length=128)
+    kernel_version: str | None = Field(default=None, min_length=1, max_length=128)
     load_average: tuple[float, float, float] | None = None
     memory_available_bytes: int | None = Field(default=None, ge=0)
     memory_total_bytes: int | None = Field(default=None, ge=0)

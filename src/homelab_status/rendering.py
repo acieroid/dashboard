@@ -70,6 +70,32 @@ def _fit_text(draw: ImageDraw.ImageDraw, text: str, font: ImageFont.ImageFont, m
     return text[:low].rstrip() + ellipsis
 
 
+def _wrap_text(
+    draw: ImageDraw.ImageDraw,
+    text: str,
+    font: ImageFont.ImageFont,
+    max_width: int,
+    max_lines: int = 2,
+) -> list[str]:
+    words = text.split()
+    lines: list[str] = []
+    current = ""
+    while words:
+        word = words.pop(0)
+        candidate = f"{current} {word}".strip()
+        if not current or _text_width(draw, candidate, font) <= max_width:
+            current = candidate
+            continue
+        lines.append(current)
+        current = word
+        if len(lines) == max_lines - 1:
+            lines.append(_fit_text(draw, " ".join([current, *words]), font, max_width))
+            return lines
+    if current:
+        lines.append(_fit_text(draw, current, font, max_width))
+    return lines[:max_lines]
+
+
 def _bytes(value: int | None) -> str:
     if value is None:
         return ""
@@ -235,7 +261,11 @@ def _system_text(report: dict[str, Any]) -> str:
         parts.append("load " + " ".join(_load_average(float(value)) for value in load_average))
     memory_available = report.get("memory_available_bytes")
     if memory_available is not None:
-        parts.append(f"mem {_bytes(int(memory_available))} free")
+        memory_total = report.get("memory_total_bytes")
+        if memory_total is not None:
+            parts.append(f"mem {_bytes(int(memory_available))}/{_bytes(int(memory_total))} avail")
+        else:
+            parts.append(f"mem {_bytes(int(memory_available))} avail")
     return " · ".join(parts)
 
 
@@ -332,8 +362,16 @@ def render_dashboard(
             draw.line((MARGIN, y + row_height - 1, WIDTH - MARGIN, y + row_height - 1), fill=INK)
 
     draw.line((MARGIN, 252, WIDTH - MARGIN, 252), fill=INK)
-    quote_text = _fit_text(draw, quote, fonts["quote"], WIDTH - 2 * MARGIN - 12)
-    draw.text((WIDTH // 2, 273), quote_text, font=fonts["quote"], fill=INK, anchor="mm")
+    quote_lines = _wrap_text(draw, quote, fonts["quote"], WIDTH - 2 * MARGIN - 12, max_lines=2)
+    start_y = 273 if len(quote_lines) == 1 else 264
+    for index, quote_line in enumerate(quote_lines):
+        draw.text(
+            (WIDTH // 2, start_y + index * 18),
+            quote_line,
+            font=fonts["quote"],
+            fill=INK,
+            anchor="mm",
+        )
     return image
 
 

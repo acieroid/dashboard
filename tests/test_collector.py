@@ -11,6 +11,7 @@ from homelab_status.collector import (
     collect_status,
     load_collector_config,
     read_disks,
+    read_os_version,
     read_memory,
     read_restic_backup,
     read_uptime,
@@ -33,6 +34,15 @@ def test_reads_available_and_total_memory(tmp_path: Path) -> None:
         encoding="ascii",
     )
     assert read_memory(meminfo) == (8_192_000_000, 16_777_216_000)
+
+
+def test_reads_pretty_os_version(tmp_path: Path) -> None:
+    os_release = tmp_path / "os-release"
+    os_release.write_text(
+        'PRETTY_NAME="Debian GNU/Linux 13 (trixie)"\nNAME="Debian GNU/Linux"\nVERSION_ID="13"\n',
+        encoding="utf-8",
+    )
+    assert read_os_version(os_release) == "Debian GNU/Linux 13 (trixie)"
 
 
 @pytest.mark.parametrize(
