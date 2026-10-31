@@ -1,0 +1,8 @@
+status.example.net {
+    @dashboard path /dashboard/*
+    handle @dashboard {
+        reverse_proxy 10.0.1.1:8080
+    }
+
+    respond 404
+}

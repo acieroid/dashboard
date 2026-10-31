@@ -1,0 +1,56 @@
+[server]
+database_path = "./data/status.sqlite3"
+stale_after_seconds = 1800
+missing_after_seconds = 7200
+retention_days = 30
+max_request_bytes = 65536
+future_clock_skew_seconds = 300
+
+[dashboard]
+timezone = "Europe/Brussels"
+quote = "Small steps, repeated, become reliable systems."
+backup_stale_after_hours = 36
+quote_of_the_day_enabled = true
+quote_of_the_day_url = "https://zenquotes.io/api/today"
+quote_cache_path = "./data/daily-quote.json"
+quote_timeout_seconds = 5.0
+
+[weather]
+enabled = true
+latitude = 50.8503
+longitude = 4.3517
+location_name = "Brussels"
+cache_seconds = 1800
+timeout_seconds = 5.0
+
+[tablet]
+enabled = true
+width = 500
+height = 500
+cache_seconds = 60
+wallpaper_enabled = true
+wallpaper_provider = "wikimedia"
+wallpaper_url_template = "https://picsum.photos/seed/homelab-{date}/{width}/{height}"
+wallpaper_cache_dir = "./data/wallpapers"
+wallpaper_timeout_seconds = 15.0
+wallpaper_max_bytes = 26214400
+weather_icons_enabled = true
+weather_icon_url_template = "https://raw.githubusercontent.com/basmilius/meteocons/v2/production/fill/png/128/{icon}.png"
+weather_icon_cache_dir = "./data/weather-icons"
+weather_icon_timeout_seconds = 5.0
+
+[[peers]]
+name = "awesom"
+wireguard_ip = "10.0.1.1"
+display_order = 10
+
+[[peers]]
+name = "u59"
+wireguard_ip = "10.0.1.2"
+display_order = 20
+
+[[peers]]
+name = "localhost"
+wireguard_ip = "10.0.1.12"
+display_order = 30
+

@@ -1,0 +1,13 @@
+[Unit]
+Description=Periodically push homelab status for %i
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=15min
+RandomizedDelaySec=60s
+Persistent=true
+AccuracySec=15s
+Unit=homelab-status-collector@%i.service
+
+[Install]
+WantedBy=timers.target

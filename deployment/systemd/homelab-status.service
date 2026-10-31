@@ -1,0 +1,34 @@
+[Unit]
+Description=Homelab status dashboard API
+Documentation=file:/opt/homelab-status/README.md
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=homelab-status
+Group=homelab-status
+WorkingDirectory=/var/lib/homelab-status
+Environment=PYTHONUNBUFFERED=1
+Environment=HOMELAB_STATUS_CONFIG=/etc/homelab-status/config.toml
+ExecStart=/opt/homelab-status/.venv/bin/homelab-status --host 10.0.1.1 --port 8080
+Restart=on-failure
+RestartSec=5s
+TimeoutStopSec=20s
+
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+LockPersonality=true
+ReadWritePaths=/var/lib/homelab-status
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+
+[Install]
+WantedBy=multi-user.target

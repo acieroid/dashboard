@@ -1,0 +1,20 @@
+mount_points = ["/", "/srv/data"]
+
+# Omit all [[restic]] tables on machines without Restic.
+[[restic]]
+label = "primary"
+repository = "/srv/backups/restic"
+password_file = "/etc/restic/password"
+result_file = "/var/lib/restic/last-backup.json"
+# Set filters when a repository contains snapshots from multiple jobs or hosts.
+snapshot_host = "u59"
+#snapshot_tags = ["daily"]
+#snapshot_paths = ["/srv/data"]
+timeout_seconds = 20
+
+# Multiple repositories are supported when their labels are unique.
+#[[restic]]
+#label = "offsite"
+#repository = "sftp:backup@example:/restic/u59"
+#password_file = "/etc/restic/password"
+#timeout_seconds = 30

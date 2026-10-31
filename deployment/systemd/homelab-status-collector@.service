@@ -1,0 +1,28 @@
+[Unit]
+Description=Push homelab status for %i
+Documentation=file:/opt/homelab-status/README.md
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=homelab-status
+Group=homelab-status
+Environment=STATUS_URL=http://10.0.1.1:8080/status
+EnvironmentFile=-/etc/default/homelab-status-collector
+EnvironmentFile=-/etc/default/homelab-status-collector-%i
+EnvironmentFile=-/etc/default/homelab-status-restic-%i
+ExecStart=/usr/bin/python3 /opt/homelab-status/scripts/push_status.py %i ${STATUS_URL} --config /etc/homelab-status/collector-%i.toml --timeout 10
+
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=read-only
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+LockPersonality=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
