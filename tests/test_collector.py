@@ -166,7 +166,7 @@ def test_reads_latest_restic_snapshot_and_result_marker(tmp_path: Path) -> None:
 
     assert captured["command"] == [
         "restic", "--repo", "/backup/repo", "--password-file", "/secret/password",
-        "snapshots", "--latest", "1", "--json",
+        "--no-cache", "--no-lock", "snapshots", "--latest", "1", "--json",
     ]
     assert captured["kwargs"]["timeout"] == 7
     assert backup == {
@@ -220,12 +220,32 @@ def test_uses_snapshot_summary_bytes_and_applies_filters() -> None:
         runner,
     )
 
-    assert captured["command"][-10:] == [
-        "snapshots", "--host", "u59", "--tag", "daily", "--path", "/srv/data",
+    assert captured["command"][-12:] == [
+        "--no-cache", "--no-lock", "snapshots", "--host", "u59", "--tag", "daily", "--path", "/srv/data",
         "--latest", "1", "--json",
     ]
     assert backup["data_added_bytes"] == 4096
     assert "last_run_successful" not in backup
+
+
+def test_selects_newest_snapshot_when_latest_returns_multiple_groups() -> None:
+    def runner(command, **kwargs):
+        return subprocess.CompletedProcess(
+            command,
+            0,
+            stdout=(
+                '[{"time":"2025-06-20T04:53:28-04:00","id":"old"},'
+                '{"time":"2026-10-26T05:00:01-04:00","id":"new",'
+                '"summary":{"data_added":1221992536}}]'
+            ),
+            stderr="",
+        )
+
+    backup = read_restic_backup(ResticConfig(label="primary"), runner)
+
+    assert backup["snapshot_id"] == "new"
+    assert backup["snapshot_time"] == "2026-10-26T05:00:01-04:00"
+    assert backup["data_added_bytes"] == 1221992536
 
 
 def test_reads_restic_json_lines_summary_marker(tmp_path: Path) -> None:

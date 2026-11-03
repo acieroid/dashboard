@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from datetime import datetime
 from io import BytesIO
 from pathlib import Path
@@ -269,6 +270,21 @@ def _system_text(report: dict[str, Any]) -> str:
     return " · ".join(parts)
 
 
+def _compact_system_identity(report: dict[str, Any]) -> str:
+    os_version = str(report.get("os_version") or "").strip()
+    kernel = str(report.get("kernel_version") or "").strip()
+    os_label = ""
+    if os_version:
+        debian = re.search(r"\bDebian(?:\s+GNU/Linux)?\s+(\d+(?:\.\d+)*)", os_version, re.IGNORECASE)
+        os_label = f"Debian {debian.group(1)}" if debian else os_version
+    kernel_label = kernel.split("-", 1)[0]
+    if kernel_label and kernel_label != kernel:
+        kernel_label += "…"
+    if os_label and kernel_label:
+        return f"{os_label} ({kernel_label})"
+    return os_label or (f"Linux {kernel_label}" if kernel_label else "")
+
+
 def _draw_machine(
     draw: ImageDraw.ImageDraw,
     peer: dict[str, Any],
@@ -287,14 +303,20 @@ def _draw_machine(
         draw.ellipse(dot_bounds, outline=INK)
     report = peer.get("report")
     reboot_required = bool(report and report.get("reboot_required") is True)
+    identity = _compact_system_identity(report) if report else ""
     age_label = _report_age_label(peer)
     age_width = _text_width(draw, age_label, fonts["label"])
-    name_width = right_x - age_width - 20 - name_x - (17 if reboot_required else 0)
+    identity_width = min(_text_width(draw, identity, fonts["warning"]) + 7 if identity else 0, 125)
+    name_width = right_x - age_width - 20 - name_x - identity_width - (17 if reboot_required else 0)
     name = _fit_text(draw, str(peer["name"]).upper(), fonts["name"], name_width)
     draw.text((name_x, y + 2), name, font=fonts["name"], fill=INK)
+    next_x = name_x + _text_width(draw, name, fonts["name"]) + 7
+    if identity:
+        identity = _fit_text(draw, identity, fonts["warning"], max(0, identity_width - 7))
+        draw.text((next_x, y + 7), identity, font=fonts["warning"], fill=INK)
+        next_x += _text_width(draw, identity, fonts["warning"]) + 6
     if reboot_required:
-        warning_x = name_x + _text_width(draw, name, fonts["name"]) + 6
-        _draw_warning(draw, warning_x, y + 5, fonts["warning"])
+        _draw_warning(draw, next_x, y + 5, fonts["warning"])
     draw.text((right_x, y + 5), age_label, font=fonts["label"], fill=INK, anchor="ra")
 
     if not report:

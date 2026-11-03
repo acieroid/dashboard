@@ -212,7 +212,7 @@ def read_restic_backup(
         command.extend(["--repo", config.repository])
     if config.password_file:
         command.extend(["--password-file", str(config.password_file)])
-    command.append("snapshots")
+    command.extend(["--no-cache", "--no-lock", "snapshots"])
     if config.snapshot_host:
         command.extend(["--host", config.snapshot_host])
     for tag in config.snapshot_tags:
@@ -231,9 +231,18 @@ def read_restic_backup(
     snapshots = json.loads(result.stdout)
     if not isinstance(snapshots, list) or not snapshots:
         raise ValueError("Restic repository contains no snapshots")
-    snapshot = snapshots[0]
-    if not isinstance(snapshot, dict) or not snapshot.get("time"):
+    valid_snapshots = [
+        item for item in snapshots if isinstance(item, dict) and item.get("time")
+    ]
+    if not valid_snapshots:
         raise ValueError("Restic returned an invalid snapshot")
+    try:
+        snapshot = max(
+            valid_snapshots,
+            key=lambda item: datetime.fromisoformat(str(item["time"]).replace("Z", "+00:00")),
+        )
+    except ValueError as exc:
+        raise ValueError("Restic returned an invalid snapshot timestamp") from exc
     summary = snapshot.get("summary")
     snapshot_added = summary.get("data_added") if isinstance(summary, dict) else None
     if snapshot_added is not None and (

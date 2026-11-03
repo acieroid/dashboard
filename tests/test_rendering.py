@@ -3,7 +3,22 @@ from io import BytesIO
 
 from PIL import Image
 
-from homelab_status.rendering import HEIGHT, WIDTH, render_dashboard, render_png
+from homelab_status.rendering import (
+    HEIGHT,
+    WIDTH,
+    _compact_system_identity,
+    render_dashboard,
+    render_png,
+)
+
+
+def test_compacts_debian_and_kernel_identity() -> None:
+    assert _compact_system_identity(
+        {
+            "os_version": "Debian GNU/Linux 12 (bookworm)",
+            "kernel_version": "6.1.0-31-amd64",
+        }
+    ) == "Debian 12 (6.1.0…)"
 
 
 def sample_snapshot(now: datetime) -> dict[str, object]:
@@ -27,6 +42,8 @@ def sample_snapshot(now: datetime) -> dict[str, object]:
                 "report": {
                     "uptime_seconds": 90_000,
                     "reboot_required": True,
+                    "os_version": "Debian GNU/Linux 12 (bookworm)",
+                    "kernel_version": "6.1.0-31-amd64",
                     "load_average": [0.12, 0.18, 0.22],
                     "memory_available_bytes": 4_000_000_000,
                     "memory_total_bytes": 8_000_000_000,
